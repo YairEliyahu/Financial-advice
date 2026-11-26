@@ -1,0 +1,27 @@
+# dependencies
+node_modules/
+
+# environment and secrets
+.env
+.env.*
+!.env.example
+
+# builds
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+
+# test and coverage
+coverage/
+
+# vercel
+.vercel/
+
+# logs and os
+*.log
+.DS_Store
+
+# local mockups, kept on disk and out of the first commits
+ChatGPT Image*.png
