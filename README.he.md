@@ -34,7 +34,7 @@
 ```mermaid
 flowchart LR
   web[Next.js_frontend]
-  api[HTTP_API]
+  api[Express_API]
   controller[Controllers]
   service[Services]
   model[Models]
@@ -47,11 +47,14 @@ flowchart LR
   model --> db
 ```
 
-- **פרונט.** Next.js, עברית, ימין לשמאל, ניתן להתקנה כ-PWA, ומפורסם ב-Vercel. המסכים אוספים קלט ומציגים את הספר. הם לא מחזיקים את כללי העמלה.
-- **Controllers.** מקבלים את הבקשה, מאמתים אותה, וקוראים את הדייר מהסשן בשרת. הלקוח לא שולח `tenant_id`.
+- **פרונט.** Next.js עם React ו-TypeScript. עברית, ימין לשמאל, Mobile-First, ניתן להתקנה כ-PWA, ומפורסם ב-Vercel. ההתחברות היא מספר טלפון וסיסמה, עם `autocomplete="username"` ו-`autocomplete="current-password"`, כדי ש-iOS Keychain ו-Face ID יוכלו למלא את הטופס בתוך ה-PWA. המסכים אוספים קלט ומציגים את הספר. הם לא מחזיקים את כללי העמלה.
+- **API.** שירות Node.js נפרד על Express ו-TypeScript.
+- **Controllers.** מקבלים את הבקשה, מאמתים אותה עם Zod, וקוראים את הדייר מהסשן בשרת. הלקוח לא שולח `tenant_id`.
+- **סשן.** משתמש אחד שנזרע מראש, ואין הרשמה פתוחה. הסיסמה נשמרת כ-hash. ה-API מנפיק cookie ארוך טווח עם `HttpOnly` ו-`Secure`, כך שהיועץ מתחבר פעם אחת מהטלפון ונשאר מחובר.
 - **Services.** בוחרים את גרסת ההסכם, מפעילים את כללי העמלה, מרכיבים את נתוני הדאשבורד, ומקפיאים את התוצאה על העסקה.
-- **Models.** שומרים לקוחות, עסקאות, יצרנים, גרסאות הסכם וכללים.
-- **מסד נתונים.** Neon Postgres. בכל טבלת דייר יש `tenant_id`. Row-Level Security נאכף, ושאילתה בלי הקשר דייר לא מחזירה שורות.
+- **Models.** שומרים לקוחות, עסקאות, יצרנים, גרסאות הסכם וכללים ב-SQL דרך `pg`.
+- **מסד נתונים.** Neon Postgres. בכל טבלת דייר יש `tenant_id`. כל טרנזקציה פותחת ב-`set_config('app.tenant_id', ..., true)`, ו-Row-Level Security נאכף, כך ששאילתה בלי הקשר דייר לא מחזירה שורות.
+- **בדיקות.** Vitest למנוע העמלות. Vitest ו-Supertest ל-API.
 
 בפיילוט יש יועץ אחד. אותה סכמה יכולה לפתוח דייר משלם נוסף בלי שינוי מבני.
 
@@ -63,14 +66,14 @@ README.he.md              מבוא בעברית
 docs/specification.md     איפיון המוצר והחישוב
 Project/                  קוד האפליקציה
 Project/frontend/         הממשק, ייווצר כשייבנה ה-UI
-Project/backend/          ה-API, ייווצר כשייבנה השירות
+Project/backend/          שירות Express, ייווצר כשייבנה ה-API
 ```
 
 האפליקציה עדיין לא הוקמה. `Project/README.md` מתאר את מבנה המודולים שה-API יעקוב אחריו: תיקייה לכל תחום, עם controller, service ו-model בנפרד.
 
 ## סטטוס
 
-איפיון ומבנה המאגר. Next.js וה-API הם שלב הבנייה הבא, והם לא חלק מהקומיט הזה.
+איפיון ומבנה המאגר. אפליקציית Next.js ושירות ה-Express הם שלב הבנייה הבא, והם לא חלק מהקומיט הזה.
 
 ## הבהרה
 

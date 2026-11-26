@@ -34,7 +34,7 @@ The interface and the domain are separate. Commission rules can be read and test
 ```mermaid
 flowchart LR
   web[Next.js_frontend]
-  api[HTTP_API]
+  api[Express_API]
   controller[Controllers]
   service[Services]
   model[Models]
@@ -47,11 +47,14 @@ flowchart LR
   model --> db
 ```
 
-- **Frontend.** Next.js, Hebrew, right-to-left, installable as a PWA, deployed on Vercel. Screens collect input and render the ledger. They do not own the fee rules.
-- **Controllers.** Accept the request, validate it, and read the tenant from the server session. The client never sends `tenant_id`.
+- **Frontend.** Next.js, React, and TypeScript. Hebrew, right-to-left, mobile-first, installable as a PWA, deployed on Vercel. Sign-in is a phone number and a password, with `autocomplete="username"` and `autocomplete="current-password"`, so iOS Keychain and Face ID can fill the form inside the PWA. Screens collect input and render the ledger. They do not own the fee rules.
+- **API.** A separate Node.js service on Express and TypeScript.
+- **Controllers.** Accept the request, validate it with Zod, and read the tenant from the server session. The client never sends `tenant_id`.
+- **Session.** One seeded user, and no open registration. The password is stored as a hash. The API issues a long-lived `HttpOnly` `Secure` cookie, so the advisor signs in once on the phone and stays signed in.
 - **Services.** Select the agreement version, apply the commission rules, build dashboard figures, and snapshot the result onto the deal.
-- **Models.** Persist clients, deals, manufacturers, agreement versions, and rules.
-- **Database.** Neon Postgres. Every tenant table carries `tenant_id`. Row-level security is forced, so a query without the tenant context returns nothing.
+- **Models.** Persist clients, deals, manufacturers, agreement versions, and rules with SQL through `pg`.
+- **Database.** Neon Postgres. Every tenant table carries `tenant_id`. Each transaction starts with `set_config('app.tenant_id', ..., true)`, and row-level security is forced, so a query without the tenant context returns nothing.
+- **Tests.** Vitest covers the commission engine. Vitest and Supertest cover the API.
 
 One advisor uses the pilot. The same schema can open a second paying tenant without a structural change.
 
@@ -63,14 +66,14 @@ README.he.md              Hebrew introduction
 docs/specification.md     product and calculation spec
 Project/                  application code
 Project/frontend/         interface, created when the UI is built
-Project/backend/          API, created when the service is built
+Project/backend/          Express API, created when the service is built
 ```
 
 The application is not scaffolded yet. `Project/README.md` describes the module layout that the API will follow: one folder per domain, with a controller, a service, and a model kept apart.
 
 ## Status
 
-Specification and repository layout. Next.js and the API are the next build, and they are not part of this commit.
+Specification and repository layout. The Next.js app and the Express API are the next build, and they are not part of this commit.
 
 ## Disclaimer
 
