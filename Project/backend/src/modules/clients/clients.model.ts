@@ -84,6 +84,50 @@ export async function insertClient(
   return mapClient(row);
 }
 
+export async function updateClient(
+  db: Db,
+  clientId: string,
+  input: {
+    fullName: string;
+    idNumberIv: string;
+    idNumberCiphertext: string;
+    idNumberAuthTag: string;
+    birthDate: string | null;
+    isBasePortfolio: boolean;
+    status: string;
+  },
+): Promise<ClientRecord> {
+  const rows = await queryRows<ClientRow>(
+    db,
+    `UPDATE clients SET
+       full_name = $2,
+       id_number_iv = $3,
+       id_number_ciphertext = $4,
+       id_number_auth_tag = $5,
+       birth_date = $6,
+       is_base_portfolio = $7,
+       status = $8
+     WHERE id = $1
+     RETURNING id, full_name, id_number_iv, id_number_ciphertext, id_number_auth_tag,
+               birth_date, is_base_portfolio, status`,
+    [
+      clientId,
+      input.fullName,
+      input.idNumberIv,
+      input.idNumberCiphertext,
+      input.idNumberAuthTag,
+      input.birthDate,
+      input.isBasePortfolio,
+      input.status,
+    ],
+  );
+  const row = rows[0];
+  if (!row) {
+    throw new Error('CLIENT_UPDATE_FAILED');
+  }
+  return mapClient(row);
+}
+
 export async function findClient(db: Db, clientId: string): Promise<ClientRecord | null> {
   const rows = await queryRows<ClientRow>(
     db,

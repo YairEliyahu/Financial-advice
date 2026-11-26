@@ -58,6 +58,43 @@ export async function createClient(
   return present(client);
 }
 
+export async function updateClient(
+  tenantId: string,
+  clientId: string,
+  input: {
+    fullName?: string;
+    idNumber?: string;
+    birthDate?: string | null;
+    isBasePortfolio?: boolean;
+    status?: 'ACTIVE' | 'INACTIVE';
+  },
+): Promise<ClientView> {
+  return withTenantTransaction(tenantId, async (db) => {
+    const existing = await clientsModel.findClient(db, clientId);
+    if (!existing) {
+      throw new DomainError('CLIENT_NOT_FOUND');
+    }
+    const nextId =
+      input.idNumber != null && input.idNumber.trim() !== ''
+        ? encryptIdNumber(input.idNumber.trim())
+        : {
+            iv: existing.idNumberIv,
+            ciphertext: existing.idNumberCiphertext,
+            authTag: existing.idNumberAuthTag,
+          };
+    const client = await clientsModel.updateClient(db, clientId, {
+      fullName: input.fullName?.trim() ?? existing.fullName,
+      idNumberIv: nextId.iv,
+      idNumberCiphertext: nextId.ciphertext,
+      idNumberAuthTag: nextId.authTag,
+      birthDate: input.birthDate !== undefined ? input.birthDate : existing.birthDate,
+      isBasePortfolio: input.isBasePortfolio ?? existing.isBasePortfolio,
+      status: input.status ?? existing.status,
+    });
+    return present(client);
+  });
+}
+
 export async function requireClient(tenantId: string, clientId: string): Promise<clientsModel.ClientRecord> {
   const client = await withTenantTransaction(tenantId, (db) => clientsModel.findClient(db, clientId));
   if (!client) {

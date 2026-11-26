@@ -36,9 +36,10 @@ export default function LoginPage() {
 
   return (
     <main className="login-frame">
-      <section className="card">
-        <p className="muted">יומן צל</p>
-        <h1>Shadow Ledger</h1>
+      <section className="card login-card rise">
+        <p className="kicker">Shadow Ledger</p>
+        <h1>כניסה ליומן הצל</h1>
+        <p className="muted">טלפון וסיסמה. ההתחברות נשמרת במכשיר.</p>
         <form onSubmit={onSubmit}>
           <label htmlFor="phone">מספר טלפון</label>
           <input
@@ -62,7 +63,7 @@ export default function LoginPage() {
             required
           />
           {error ? <p className="error">{error}</p> : null}
-          <button className="primary" type="submit" disabled={pending}>
+          <button className="btn btn-primary" type="submit" disabled={pending}>
             {pending ? 'מתחבר…' : 'כניסה'}
           </button>
         </form>

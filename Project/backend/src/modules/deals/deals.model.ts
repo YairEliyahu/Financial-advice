@@ -302,10 +302,174 @@ export async function markAbsorbed(
   return deal;
 }
 
+export async function updateSubmittedDeal(
+  db: Db,
+  input: {
+    dealId: string;
+    clientId: string;
+    manufacturerId: string;
+    productType: ProductType;
+    dealDate: string;
+    expectedAmount: number;
+    calculationBaseAmount: number | null;
+    manualAmount: number | null;
+    expectedGrossScope: number;
+    expectedNetScope: number;
+    expectedGrossMonthlyOngoing: number;
+    expectedNetMonthlyOngoing: number;
+    expectedAnnualPaceGross: number;
+    expectedAnnualPaceNet: number;
+    entersAum: boolean;
+    showSeparateBase: boolean;
+    requiresManualAmount: boolean;
+    calculationBase: CalculationBase;
+    agreementVersionId: string;
+    ruleSnapshot: unknown;
+    note: string | null;
+  },
+): Promise<DealRecord> {
+  await db.query(
+    `UPDATE deals SET
+       client_id = $2,
+       manufacturer_id = $3,
+       product_type = $4,
+       deal_date = $5::date,
+       expected_amount = $6,
+       calculation_base_amount = $7,
+       manual_amount = $8,
+       expected_gross_scope = $9,
+       expected_net_scope = $10,
+       expected_gross_monthly_ongoing = $11,
+       expected_net_monthly_ongoing = $12,
+       expected_annual_pace_gross = $13,
+       expected_annual_pace_net = $14,
+       enters_aum = $15,
+       show_separate_base = $16,
+       requires_manual_amount = $17,
+       calculation_base = $18,
+       agreement_version_id = $19,
+       rule_snapshot = $20::jsonb,
+       note = $21,
+       updated_at = now()
+     WHERE id = $1`,
+    [
+      input.dealId,
+      input.clientId,
+      input.manufacturerId,
+      input.productType,
+      input.dealDate,
+      input.expectedAmount,
+      input.calculationBaseAmount,
+      input.manualAmount,
+      input.expectedGrossScope,
+      input.expectedNetScope,
+      input.expectedGrossMonthlyOngoing,
+      input.expectedNetMonthlyOngoing,
+      input.expectedAnnualPaceGross,
+      input.expectedAnnualPaceNet,
+      input.entersAum,
+      input.showSeparateBase,
+      input.requiresManualAmount,
+      input.calculationBase,
+      input.agreementVersionId,
+      JSON.stringify(input.ruleSnapshot),
+      input.note,
+    ],
+  );
+  const deal = await findDealForUpdate(db, input.dealId);
+  if (!deal) {
+    throw new Error('DEAL_UPDATE_FAILED');
+  }
+  return deal;
+}
+
+export async function updateSubmittedIdentity(
+  db: Db,
+  dealId: string,
+  clientId: string,
+  note: string | null,
+): Promise<DealRecord> {
+  await db.query(
+    `UPDATE deals SET client_id = $2, note = $3, updated_at = now() WHERE id = $1`,
+    [dealId, clientId, note],
+  );
+  const deal = await findDealForUpdate(db, dealId);
+  if (!deal) {
+    throw new Error('DEAL_UPDATE_FAILED');
+  }
+  return deal;
+}
+
+export async function correctAbsorbedSnapshot(
+  db: Db,
+  input: {
+    dealId: string;
+    actualAmount: number;
+    calculationBaseAmount: number | null;
+    manualAmount: number | null;
+    recognizedGrossScope: number;
+    recognizedNetScope: number;
+    recognizedGrossMonthlyOngoing: number;
+    recognizedNetMonthlyOngoing: number;
+    recognizedAnnualPaceGross: number;
+    recognizedAnnualPaceNet: number;
+    entersAum: boolean;
+    showSeparateBase: boolean;
+    requiresManualAmount: boolean;
+    calculationBase: CalculationBase;
+    agreementVersionId: string;
+    ruleSnapshot: unknown;
+  },
+): Promise<DealRecord> {
+  await db.query(
+    `UPDATE deals SET
+       actual_amount = $2,
+       calculation_base_amount = $3,
+       manual_amount = $4,
+       recognized_gross_scope = $5,
+       recognized_net_scope = $6,
+       recognized_gross_monthly_ongoing = $7,
+       recognized_net_monthly_ongoing = $8,
+       recognized_annual_pace_gross = $9,
+       recognized_annual_pace_net = $10,
+       enters_aum = $11,
+       show_separate_base = $12,
+       requires_manual_amount = $13,
+       calculation_base = $14,
+       agreement_version_id = $15,
+       rule_snapshot = $16::jsonb,
+       updated_at = now()
+     WHERE id = $1`,
+    [
+      input.dealId,
+      input.actualAmount,
+      input.calculationBaseAmount,
+      input.manualAmount,
+      input.recognizedGrossScope,
+      input.recognizedNetScope,
+      input.recognizedGrossMonthlyOngoing,
+      input.recognizedNetMonthlyOngoing,
+      input.recognizedAnnualPaceGross,
+      input.recognizedAnnualPaceNet,
+      input.entersAum,
+      input.showSeparateBase,
+      input.requiresManualAmount,
+      input.calculationBase,
+      input.agreementVersionId,
+      JSON.stringify(input.ruleSnapshot),
+    ],
+  );
+  const deal = await findDealForUpdate(db, input.dealId);
+  if (!deal) {
+    throw new Error('DEAL_UPDATE_FAILED');
+  }
+  return deal;
+}
+
 export async function updateReconciliation(
   db: Db,
   dealId: string,
-  status: 'MATCHED' | 'DISCREPANCY',
+  status: 'PENDING_REVIEW' | 'MATCHED' | 'DISCREPANCY',
   note: string | null,
 ): Promise<DealRecord> {
   await db.query(

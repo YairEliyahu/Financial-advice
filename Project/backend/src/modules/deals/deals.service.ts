@@ -55,6 +55,7 @@ function presentDeal(deal: dealsModel.DealRecord) {
   return {
     ...deal,
     productLabel: PRODUCT_LABELS[deal.productType],
+    calculationBaseLabel: deal.calculationBase ? CALCULATION_BASE_LABELS[deal.calculationBase] : null,
     dealStatusLabel: STATUS_LABELS[deal.dealStatus],
     reconciliationStatusLabel: RECONCILIATION_LABELS[deal.reconciliationStatus],
   };
@@ -279,6 +280,189 @@ export async function absorbDeal(
         partnerSplitRate: version.partnerSplitRate,
       }),
     });
+    return presentDeal(deal);
+  });
+}
+
+export interface DealPatch {
+  clientId?: string;
+  manufacturerId?: string;
+  productType?: ProductType;
+  dealDate?: string;
+  expectedAmount?: number;
+  calculationBaseAmount?: number | null;
+  manualAmount?: number | null;
+  reconciliationStatus?: 'PENDING_REVIEW' | 'MATCHED' | 'DISCREPANCY';
+  note?: string | null;
+  actualAmount?: number;
+}
+
+function hasOwn(input: object, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(input, key);
+}
+
+export async function updateDeal(tenantId: string, dealId: string, input: DealPatch) {
+  return withTenantTransaction(tenantId, async (db) => {
+    const existing = await dealsModel.findDealForUpdate(db, dealId);
+    if (!existing) {
+      throw new DomainError('DEAL_NOT_FOUND');
+    }
+    if (existing.dealStatus === 'CHURNED') {
+      throw new DomainError('LOCKED');
+    }
+
+    const note = hasOwn(input, 'note') ? (input.note ?? null) : existing.note;
+
+    if (existing.dealStatus === 'SUBMITTED') {
+      if (input.reconciliationStatus != null || input.actualAmount != null) {
+        throw new DomainError('NOT_ABSORBED');
+      }
+      const financial =
+        input.manufacturerId != null ||
+        input.productType != null ||
+        input.dealDate != null ||
+        input.expectedAmount != null ||
+        hasOwn(input, 'calculationBaseAmount') ||
+        hasOwn(input, 'manualAmount');
+      const clientId = input.clientId ?? existing.clientId;
+      if (input.clientId != null) {
+        const client = await clientsModel.findClient(db, input.clientId);
+        if (!client) {
+          throw new DomainError('CLIENT_NOT_FOUND');
+        }
+      }
+      if (!financial) {
+        const deal = await dealsModel.updateSubmittedIdentity(db, dealId, clientId, note);
+        return presentDeal(deal);
+      }
+      const manufacturerId = input.manufacturerId ?? existing.manufacturerId;
+      const productType = input.productType ?? existing.productType;
+      const dealDate = input.dealDate ?? existing.dealDate;
+      const expectedAmount = input.expectedAmount ?? existing.expectedAmount;
+      const calculationBaseAmount = hasOwn(input, 'calculationBaseAmount')
+        ? (input.calculationBaseAmount ?? null)
+        : existing.calculationBaseAmount;
+      const manualAmount = hasOwn(input, 'manualAmount') ? (input.manualAmount ?? null) : existing.manualAmount;
+      const quote = await quoteOn(db, {
+        productType,
+        manufacturerId,
+        dealDate,
+        aumAmount: expectedAmount,
+        ...(calculationBaseAmount != null ? { calculationBaseAmount } : {}),
+        ...(manualAmount != null ? { manualAmount } : {}),
+      });
+      const version = await agreementsModel.findVersionForDate(db, dealDate);
+      if (!version) {
+        throw new DomainError('NO_AGREEMENT');
+      }
+      const deal = await dealsModel.updateSubmittedDeal(db, {
+        dealId,
+        clientId,
+        manufacturerId,
+        productType,
+        dealDate,
+        expectedAmount,
+        calculationBaseAmount,
+        manualAmount,
+        expectedGrossScope: quote.grossScope,
+        expectedNetScope: quote.netScope,
+        expectedGrossMonthlyOngoing: quote.grossMonthlyOngoing,
+        expectedNetMonthlyOngoing: quote.netMonthlyOngoing,
+        expectedAnnualPaceGross: quote.annualPaceGross,
+        expectedAnnualPaceNet: quote.annualPaceNet,
+        entersAum: quote.entersAum,
+        showSeparateBase: quote.showSeparateBase,
+        requiresManualAmount: quote.requiresManualAmount,
+        calculationBase: quote.calculationBase,
+        agreementVersionId: quote.agreementVersionId,
+        ruleSnapshot: snapshot(quote, {
+          vatRate: version.vatRate,
+          hqOverheadRate: version.hqOverheadRate,
+          partnerSplitRate: version.partnerSplitRate,
+        }),
+        note,
+      });
+      return presentDeal(deal);
+    }
+
+    if (
+      input.clientId != null ||
+      input.manufacturerId != null ||
+      input.productType != null ||
+      input.dealDate != null ||
+      input.expectedAmount != null
+    ) {
+      throw new DomainError('ALREADY_ABSORBED');
+    }
+
+    const touchesSnapshot =
+      input.actualAmount != null || hasOwn(input, 'calculationBaseAmount') || hasOwn(input, 'manualAmount');
+    if (touchesSnapshot) {
+      if (existing.reconciliationStatus === 'MATCHED') {
+        throw new DomainError('LOCKED');
+      }
+      if (!existing.absorbedOn) {
+        throw new DomainError('NOT_READY');
+      }
+      const actualAmount = input.actualAmount ?? existing.actualAmount;
+      if (actualAmount == null) {
+        throw new DomainError('NOT_READY');
+      }
+      const calculationBaseAmount = hasOwn(input, 'calculationBaseAmount')
+        ? (input.calculationBaseAmount ?? null)
+        : existing.calculationBaseAmount;
+      const manualAmount = hasOwn(input, 'manualAmount') ? (input.manualAmount ?? null) : existing.manualAmount;
+      const quote = await quoteOn(db, {
+        productType: existing.productType,
+        manufacturerId: existing.manufacturerId,
+        dealDate: existing.absorbedOn,
+        aumAmount: actualAmount,
+        ...(calculationBaseAmount != null ? { calculationBaseAmount } : {}),
+        ...(manualAmount != null ? { manualAmount } : {}),
+      });
+      const version = await agreementsModel.findVersionForDate(db, existing.absorbedOn);
+      if (!version) {
+        throw new DomainError('NO_AGREEMENT');
+      }
+      await dealsModel.correctAbsorbedSnapshot(db, {
+        dealId,
+        actualAmount,
+        calculationBaseAmount,
+        manualAmount,
+        recognizedGrossScope: quote.grossScope,
+        recognizedNetScope: quote.netScope,
+        recognizedGrossMonthlyOngoing: quote.grossMonthlyOngoing,
+        recognizedNetMonthlyOngoing: quote.netMonthlyOngoing,
+        recognizedAnnualPaceGross: quote.annualPaceGross,
+        recognizedAnnualPaceNet: quote.annualPaceNet,
+        entersAum: quote.entersAum,
+        showSeparateBase: quote.showSeparateBase,
+        requiresManualAmount: quote.requiresManualAmount,
+        calculationBase: quote.calculationBase,
+        agreementVersionId: quote.agreementVersionId,
+        ruleSnapshot: snapshot(quote, {
+          vatRate: version.vatRate,
+          hqOverheadRate: version.hqOverheadRate,
+          partnerSplitRate: version.partnerSplitRate,
+        }),
+      });
+    }
+
+    const nextStatus = input.reconciliationStatus ?? existing.reconciliationStatus;
+    if (nextStatus === 'PENDING_INTAKE') {
+      throw new DomainError('NOT_READY');
+    }
+    if (nextStatus === 'DISCREPANCY' && (note ?? '').trim().length === 0) {
+      throw new DomainError('NOTE_REQUIRED');
+    }
+    if (input.reconciliationStatus != null || hasOwn(input, 'note')) {
+      const deal = await dealsModel.updateReconciliation(db, dealId, nextStatus, note);
+      return presentDeal(deal);
+    }
+    const deal = await dealsModel.findDealForUpdate(db, dealId);
+    if (!deal) {
+      throw new DomainError('DEAL_NOT_FOUND');
+    }
     return presentDeal(deal);
   });
 }

@@ -41,5 +41,23 @@ describe('API', () => {
     }
     const preview = await request(app).post('/api/commission/preview').send({});
     expect(preview.status).toBe(401);
+    const clientUpdate = await request(app)
+      .patch('/api/clients/00000000-0000-4000-8000-000000000001')
+      .send({ fullName: 'לקוח לדוגמה', status: 'ACTIVE' });
+    expect(clientUpdate.status).toBe(401);
+    const dealUpdate = await request(app)
+      .patch('/api/deals/00000000-0000-4000-8000-000000000002')
+      .send({ reconciliationStatus: 'PENDING_REVIEW' });
+    expect(dealUpdate.status).toBe(401);
+    const ranged = await request(app).get('/api/dashboard?range=quarter');
+    expect(ranged.status).toBe(401);
+  });
+
+  it('rejects client and deal updates without a session', async () => {
+    const malformed = await request(app).patch('/api/clients/not-a-uuid').send({ fullName: 'לקוח' });
+    expect(malformed.status).toBe(401);
+    const emptyDeal = await request(app).patch('/api/deals/00000000-0000-4000-8000-000000000002').send({});
+    expect(emptyDeal.status).toBe(401);
+    expect(emptyDeal.body).toEqual({ error: 'נדרשת התחברות' });
   });
 });

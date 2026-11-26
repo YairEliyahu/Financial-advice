@@ -27,31 +27,48 @@ export function Shell({ children }: { children: (session: SessionUser) => ReactN
       .catch(() => router.replace('/'));
   }, [router]);
 
+  function logout() {
+    void api('/api/auth/logout', { method: 'POST' }).finally(() => router.replace('/'));
+  }
+
   if (!session) {
-    return <main className="app-frame">טוען…</main>;
+    return <main className="workspace-inner">טוען…</main>;
   }
 
   return (
-    <>
-      <main className="app-frame">
-        <header className="brand">
+    <div className="shell">
+      <aside className="sidebar">
+        <div className="brand-lockup">
+          <span className="logo-dot" aria-hidden="true" />
           <div>
-            <h1>Shadow Ledger</h1>
+            <strong>Shadow Ledger</strong>
             <p>{session.phone}</p>
           </div>
-          <button
-            className="ghost"
-            type="button"
-            onClick={() => {
-              void api('/api/auth/logout', { method: 'POST' }).finally(() => router.replace('/'));
-            }}
-          >
-            יציאה
-          </button>
-        </header>
-        {children(session)}
-      </main>
-      <nav className="nav">
+        </div>
+        <nav className="side-nav" aria-label="ניווט ראשי">
+          {links.map((link) => (
+            <Link key={link.href} href={link.href} className={pathname === link.href ? 'side-link active' : 'side-link'}>
+              <NavIcon name={link.href} />
+              {link.label}
+            </Link>
+          ))}
+        </nav>
+        <button className="btn btn-ghost logout" type="button" onClick={logout}>
+          יציאה
+        </button>
+      </aside>
+      <div className="workspace">
+        <div className="workspace-inner">
+          <header className="mobile-top">
+            <strong>Shadow Ledger</strong>
+            <button className="btn btn-ghost" type="button" onClick={logout}>
+              יציאה
+            </button>
+          </header>
+          {children(session)}
+        </div>
+      </div>
+      <nav className="bottom-nav" aria-label="ניווט">
         {links.map((link) => (
           <Link key={link.href} href={link.href} className={pathname === link.href ? 'active' : undefined}>
             <NavIcon name={link.href} />
@@ -59,12 +76,12 @@ export function Shell({ children }: { children: (session: SessionUser) => ReactN
           </Link>
         ))}
       </nav>
-    </>
+    </div>
   );
 }
 
 function NavIcon({ name }: { name: string }) {
-  const common = { width: 22, height: 22, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8 };
+  const common = { width: 22, height: 22, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, 'aria-hidden': true as const };
   if (name === '/dashboard') {
     return (
       <svg {...common}>

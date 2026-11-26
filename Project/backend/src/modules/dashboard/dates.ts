@@ -33,6 +33,34 @@ export function yearBounds(year: number): { start: string; end: string } {
   return { start: `${year}-01-01`, end: `${year + 1}-01-01` };
 }
 
+export type DashboardRange = 'month' | 'quarter' | 'year';
+
+export function rangeBounds(range: DashboardRange, year: number, month: number): { start: string; end: string } {
+  if (range === 'year') {
+    return yearBounds(year);
+  }
+  if (range === 'month') {
+    return monthBounds(year, month);
+  }
+  const startMonth = Math.floor((month - 1) / 3) * 3 + 1;
+  const start = monthBounds(year, startMonth).start;
+  if (startMonth + 3 > 12) {
+    return { start, end: `${year + 1}-01-01` };
+  }
+  return { start, end: monthBounds(year, startMonth + 3).start };
+}
+
+export function rangeLabel(range: DashboardRange, year: number, month: number): string {
+  if (range === 'year') {
+    return String(year);
+  }
+  if (range === 'month') {
+    return hebrewMonthLabel(year, month);
+  }
+  const quarter = Math.floor((month - 1) / 3) + 1;
+  return `רבעון ${quarter} ${year}`;
+}
+
 export function hebrewMonthLabel(year: number, month: number): string {
   const date = new Date(Date.UTC(year, month - 1, 15));
   return new Intl.DateTimeFormat('he-IL', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(date);

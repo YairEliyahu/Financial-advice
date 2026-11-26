@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { asyncHandler } from '../../app/asyncHandler.js';
-import { jerusalemYearMonth } from './dates.js';
+import { jerusalemYearMonth, type DashboardRange } from './dates.js';
 import * as dashboardService from './dashboard.service.js';
 
 export const dashboardRouter = Router();
@@ -31,7 +31,17 @@ dashboardRouter.get(
       res.status(400).json({ error: 'חודש לא תקין' });
       return;
     }
-    const payload = await dashboardService.dashboard(auth.tenantId, year, month);
+    const requestedRange = req.query.range;
+    let range: DashboardRange = 'month';
+    if (requestedRange != null && requestedRange !== '') {
+      if (requestedRange === 'month' || requestedRange === 'quarter' || requestedRange === 'year') {
+        range = requestedRange;
+      } else {
+        res.status(400).json({ error: 'טווח לא תקין' });
+        return;
+      }
+    }
+    const payload = await dashboardService.dashboard(auth.tenantId, year, month, range);
     res.json(payload);
   }),
 );

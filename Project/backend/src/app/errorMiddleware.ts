@@ -14,6 +14,8 @@ const messages: Record<string, { status: number; error: string }> = {
   ALREADY_ABSORBED: { status: 409, error: 'העסקה כבר נקלטה' },
   LOCKED: { status: 409, error: 'עסקה שסומנה כתואמת נעולה' },
   NOT_READY: { status: 409, error: 'צריך לקלוט את העסקה לפני סימון הלימה' },
+  NOT_ABSORBED: { status: 409, error: 'סטטוס הלימה וסכום קליטה זמינים רק אחרי קליטה' },
+  NOTE_REQUIRED: { status: 422, error: 'לפער צריך לכתוב הערה' },
   VERSION_CONFLICT: { status: 409, error: 'תאריך הגרסה החדשה חייב להיות אחרי תחילת הגרסה הפתוחה' },
 };
 

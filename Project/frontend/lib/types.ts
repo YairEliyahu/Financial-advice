@@ -55,7 +55,6 @@ export interface Deal {
   actualAmount: number | null;
   showSeparateBase: boolean;
   requiresManualAmount: boolean;
-  calculationBaseLabel?: string;
   expectedGrossScope: number | null;
   expectedNetScope: number | null;
   expectedGrossMonthlyOngoing: number | null;
@@ -63,6 +62,10 @@ export interface Deal {
   recognizedNetScope: number | null;
   recognizedGrossMonthlyOngoing: number | null;
   recognizedAnnualPaceNet: number | null;
+  calculationBaseAmount: number | null;
+  manualAmount: number | null;
+  calculationBase: string | null;
+  calculationBaseLabel: string | null;
   dealStatus: 'SUBMITTED' | 'ABSORBED' | 'CHURNED';
   dealStatusLabel: string;
   reconciliationStatus: 'PENDING_INTAKE' | 'PENDING_REVIEW' | 'MATCHED' | 'DISCREPANCY';
@@ -81,10 +84,18 @@ export interface TargetPeriod {
   targetDefined: boolean;
 }
 
+export type DashboardRange = 'month' | 'quarter' | 'year';
+
 export interface Dashboard {
   month: string;
   monthLabel: string;
   year: number;
+  range: DashboardRange;
+  periodLabel: string;
+  periodStart: string;
+  periodEnd: string;
+  advisorName: string;
+  clientCount: number;
   discrepancies: Array<{
     id: string;
     clientName: string;
@@ -92,6 +103,17 @@ export interface Dashboard {
     productLabel: string;
     note: string | null;
     actualAmount: number | null;
+    dealDate: string;
+  }>;
+  activity: Array<{
+    id: string;
+    dealId: string;
+    kind: 'SUBMITTED' | 'ABSORBED' | 'MATCHED' | 'DISCREPANCY';
+    date: string;
+    clientName: string;
+    manufacturerName: string;
+    productLabel: string;
+    amount: number | null;
   }>;
   aum: { total: number; base: number; partnership: number };
   monthRewards: {
@@ -100,8 +122,28 @@ export interface Dashboard {
     annualPaceNet: number;
     totalNet: number;
   };
+  rewards: {
+    scopeNet: number;
+    ongoingMonthlyNet: number;
+    annualPaceNet: number;
+    totalNet: number;
+  };
   targets: { month: TargetPeriod; year: TargetPeriod };
+  goal: TargetPeriod & { label: string; hint: string | null };
+  funnel: { submitted: number; absorbed: number; matched: number; discrepancy: number };
+  trend: Array<{ date: string; registered: number; absorbed: number; scopeNet: number }>;
   manufacturers: Array<{ id: string; name: string; amount: number; percent: number }>;
+  recentDeals: Array<{
+    id: string;
+    clientName: string;
+    manufacturerId: string;
+    manufacturerName: string;
+    productLabel: string;
+    dealDate: string;
+    amount: number;
+    dealStatus: Deal['dealStatus'];
+    reconciliationStatus: Deal['reconciliationStatus'];
+  }>;
 }
 
 export interface AgreementRule {

@@ -31,6 +31,21 @@ const reconcileSchema = z.object({
   note: z.string().trim().max(2000).optional(),
 });
 
+const patchSchema = z
+  .object({
+    clientId: z.string().uuid().optional(),
+    manufacturerId: z.string().uuid().optional(),
+    productType: z.enum(PRODUCT_TYPES).optional(),
+    dealDate: dateSchema.optional(),
+    expectedAmount: money.optional(),
+    calculationBaseAmount: money.nullable().optional(),
+    manualAmount: money.nullable().optional(),
+    reconciliationStatus: z.enum(['PENDING_REVIEW', 'MATCHED', 'DISCREPANCY']).optional(),
+    note: z.string().trim().max(2000).nullable().optional(),
+    actualAmount: money.optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, { message: 'empty' });
+
 function quoteFrom(data: z.infer<typeof previewSchema>): dealsService.QuoteRequest {
   return {
     productType: data.productType,
@@ -75,6 +90,37 @@ dealsRouter.post(
       clientId: parsed.data.clientId,
     });
     res.status(201).json({ deal });
+  }),
+);
+
+dealsRouter.patch(
+  '/:id',
+  asyncHandler(async (req, res) => {
+    const auth = req.auth;
+    if (!auth) {
+      res.status(401).json({ error: 'נדרשת התחברות' });
+      return;
+    }
+    const id = z.string().uuid().safeParse(req.params.id);
+    const parsed = patchSchema.safeParse(req.body);
+    if (!id.success || !parsed.success) {
+      res.status(400).json({ error: 'פרטי העדכון לא תקינים' });
+      return;
+    }
+    const data = parsed.data;
+    const deal = await dealsService.updateDeal(auth.tenantId, id.data, {
+      ...(data.clientId != null ? { clientId: data.clientId } : {}),
+      ...(data.manufacturerId != null ? { manufacturerId: data.manufacturerId } : {}),
+      ...(data.productType != null ? { productType: data.productType } : {}),
+      ...(data.dealDate != null ? { dealDate: data.dealDate } : {}),
+      ...(data.expectedAmount != null ? { expectedAmount: data.expectedAmount } : {}),
+      ...(data.calculationBaseAmount !== undefined ? { calculationBaseAmount: data.calculationBaseAmount } : {}),
+      ...(data.manualAmount !== undefined ? { manualAmount: data.manualAmount } : {}),
+      ...(data.reconciliationStatus != null ? { reconciliationStatus: data.reconciliationStatus } : {}),
+      ...(data.note !== undefined ? { note: data.note } : {}),
+      ...(data.actualAmount != null ? { actualAmount: data.actualAmount } : {}),
+    });
+    res.json({ deal });
   }),
 );
 
