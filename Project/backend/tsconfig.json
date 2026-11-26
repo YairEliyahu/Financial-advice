@@ -17,5 +17,5 @@
     "sourceMap": true,
     "rootDir": "."
   },
-  "include": ["src/**/*.ts", "db/**/*.ts"]
+  "include": ["src/**/*.ts", "db/**/*.ts", "api/**/*.ts"]
 }
